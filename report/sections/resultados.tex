@@ -1,0 +1,161 @@
+\section{Resultados}
+\label{sec:resultados}
+
+Esta seção apresenta os resultados obtidos em cada etapa do projeto, incluindo métricas de calibração, qualidade do tracking e exemplos visuais das implementações.
+
+\subsection{Resultados da Calibração}
+
+O processo de calibração foi executado com sucesso, coletando 25 imagens válidas do padrão de xadrez distribuídas ao longo do vídeo \texttt{data/pattern.MOV}.
+
+\subsubsection{Parâmetros de Calibração}
+
+A matriz de calibração intrínseca obtida foi:
+
+\[
+K = \begin{bmatrix}
+1595.91 & 0 & 964.36 \\
+0 & 1604.27 & 580.13 \\
+0 & 0 & 1
+\end{bmatrix}
+\]
+
+Os valores indicam:
+\begin{itemize}
+    \item Distâncias focais: $f_x = 1595.91$ pixels, $f_y = 1604.27$ pixels
+    \item Ponto principal: $(c_x, c_y) = (964.36, 580.13)$ pixels
+    \item A razão $f_x/f_y \approx 1.0$ indica pixels aproximadamente quadrados, o que é esperado para câmeras modernas
+\end{itemize}
+
+Os coeficientes de distorção obtidos foram:
+\[
+\text{dist} = [0.027, 1.219, 0.002, 0.001, -5.678]
+\]
+
+Estes valores representam:
+\begin{itemize}
+    \item $k_1, k_2$: Coeficientes de distorção radial
+    \item $p_1, p_2$: Coeficientes de distorção tangencial
+    \item $k_3$: Coeficiente adicional de distorção radial
+\end{itemize}
+
+O valor elevado de $k_2$ ($1.219$) indica presença significativa de distorção radial, o que é comum em lentes de câmeras.
+
+\subsubsection{Métricas de Qualidade}
+
+\begin{itemize}
+    \item \textbf{Erro RMS (OpenCV)}: Valor retornado pela função de calibração
+    \item \textbf{Erro médio de reprojeção}: Calculado projetando os pontos 3D de volta na imagem
+\end{itemize}
+
+As imagens de calibração foram salvas em \texttt{out/corners\_XX.png}, mostrando os cantos detectados e refinados do padrão de xadrez. A Figura~\ref{fig:calibration} mostra exemplos representativos dessas imagens.
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}{0.3\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{../out/corners_04.png}
+        \caption{Frame 4}
+    \end{subfigure}
+    \begin{subfigure}{0.3\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{../out/corners_10.png}
+        \caption{Frame 10}
+    \end{subfigure}
+    \begin{subfigure}{0.3\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{../out/corners_16.png}
+        \caption{Frame 16}
+    \end{subfigure}
+    \caption{Exemplos de imagens de calibração com cantos detectados}
+    \label{fig:calibration}
+\end{figure}
+
+\subsection{Resultados da Realidade Aumentada - Cubo}
+
+A implementação do cubo demonstrou tracking estável dos marcadores ArUco. O sistema foi testado com o vídeo \texttt{data/aruco-marker.MOV}.
+
+\subsubsection{Características da Implementação}
+
+\begin{itemize}
+    \item \textbf{Tamanho do marcador}: 4 cm (0.04 m)
+    \item \textbf{Tamanho do cubo}: $MARKER\_SIZE/4 = 1$ cm
+    \item \textbf{Visualização}: Cubo vermelho com wireframe preto para melhor visibilidade
+    \item \textbf{Eixos de referência}: Desenhados para validação da orientação
+\end{itemize}
+
+O cubo é renderizado diretamente sobre o marcador, com um pequeno deslocamento no eixo Z para evitar sobreposição com o plano do marcador.
+
+\subsubsection{Qualidade do Tracking}
+
+O tracking apresentou as seguintes características:
+\begin{itemize}
+    \item Detecção robusta dos marcadores mesmo com variações de iluminação
+    \item Estabilidade adequada da pose estimada
+    \item Renderização correta do cubo seguindo os movimentos do marcador
+\end{itemize}
+
+\subsection{Resultados da Realidade Aumentada - Bola de Tênis}
+
+A implementação da bola de tênis foi testada com o vídeo \texttt{data/aruco-marker-4.MOV} e produziu múltiplos vídeos de saída.
+
+\subsubsection{Vídeos Gerados}
+
+Foram gerados os seguintes vídeos de saída (salvos em \texttt{out/}):
+\begin{itemize}
+    \item \texttt{tennis\_ball\_output\_1761672135.mp4}
+    \item \texttt{tennis\_ball\_output\_1761672380.mp4}
+    \item \texttt{tennis\_ball\_output\_1761672964.mp4}
+    \item \texttt{tennis\_ball\_output\_1761673027.mp4}
+    \item \texttt{tennis\_ball\_output\_1761673091.mp4}
+\end{itemize}
+
+\subsubsection{Características da Renderização}
+
+\begin{itemize}
+    \item \textbf{Textura}: Bola de tênis texturizada carregada de \texttt{data/tennis-ball-texture.jpg}
+    \item \textbf{Costura}: Linha branca característica desenhada sobre a esfera
+    \item \textbf{Posicionamento}: Bola flutuando acima do marcador (elevação de $MARKER\_SIZE$)
+    \item \textbf{Resolução}: Vídeos gerados na resolução da janela OpenGL (escalada para caber na tela)
+    \item \textbf{Taxa de quadros}: 60 FPS
+\end{itemize}
+
+\subsubsection{Qualidade do Tracking}
+
+O sistema de tracking da bola de tênis apresentou:
+\begin{itemize}
+    \item Tracking estável durante a maior parte do vídeo
+    \item Renderização suave da esfera texturizada
+    \item Integração visual adequada entre o objeto virtual e o ambiente real
+    \item Algumas instabilidades quando o marcador sai parcialmente do campo de visão
+\end{itemize}
+
+\subsubsection{Análise Visual}
+
+Os vídeos gerados demonstram:
+\begin{enumerate}
+    \item \textbf{Tracking preciso}: A bola segue corretamente os movimentos do marcador
+    \item \textbf{Orientação correta}: A bola mantém orientação consistente com a pose do marcador
+    \item \textbf{Iluminação}: A textura responde adequadamente às condições de iluminação do ambiente
+    \item \textbf{Profundidade}: O efeito de profundidade é preservado através do sistema de coordenadas calibrado
+\end{enumerate}
+
+\subsection{Comparação entre Implementações}
+
+A Tabela~\ref{tab:comparacao} apresenta uma comparação entre as duas implementações AR.
+
+\begin{table}[H]
+    \centering
+    \begin{tabular}{lcc}
+        \toprule
+        \textbf{Característica} & \textbf{Cubo} & \textbf{Bola de Tênis} \\
+        \midrule
+        Complexidade geométrica & Baixa & Média \\
+        Texturização & Não & Sim \\
+        Iluminação & Básica & Avançada \\
+        Gravação de vídeo & Não & Sim \\
+        Custo computacional & Baixo & Médio \\
+        \bottomrule
+    \end{tabular}
+    \caption{Comparação entre as implementações AR}
+    \label{tab:comparacao}
+\end{table}

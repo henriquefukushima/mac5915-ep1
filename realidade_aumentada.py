@@ -39,7 +39,7 @@ SizeY, SizeX, _ = frame0.shape
 # Tamanho original dos frames
 orig_h, orig_w = frame0.shape[:2]
 
-# ==== ajustar janela para caber na tela ====
+# ajustar janela para caber na tela
 screen_w = glutGet(GLUT_SCREEN_WIDTH) if glutGet(GLUT_SCREEN_WIDTH) else 1440
 screen_h = glutGet(GLUT_SCREEN_HEIGHT) if glutGet(GLUT_SCREEN_HEIGHT) else 900
 
@@ -50,14 +50,14 @@ display_scale = float(min(scale_w, scale_h, 1.0))  # nunca amplia além do origi
 win_w = int(orig_w * display_scale)
 win_h = int(orig_h * display_scale)
 
-# K (intrínseca) precisa ser escalonada pela MESMA razão de escala do display
+# matriz K precisa ser escalonada pela mesma razão do display
 K_disp = mtx.copy()
 K_disp[0, 0] *= display_scale  # fx
 K_disp[1, 1] *= display_scale  # fy
 K_disp[0, 2] *= display_scale  # cx
 K_disp[1, 2] *= display_scale  # cy
 
-# ======= CONVERSÃO PARA MATRIZ DE PROJEÇÃO OPENGL =======
+# conversão para matriz de projeção OpenGL
 def build_projection_matrix(K, w, h, near=0.001, far=10.0):
     fx, fy = K[0,0], K[1,1]
     cx, cy = K[0,2], K[1,2]
@@ -71,12 +71,12 @@ def build_projection_matrix(K, w, h, near=0.001, far=10.0):
     proj[2,3] = -2.0*far*near/(far-near)
     return proj.T
 
-# ======= CONVERSÃO POSE -> MATRIZ MODELVIEW =======
+# conversão pose -> matriz modelview
 def build_modelview_matrix(rvec, tvec):
-    rvec = np.asarray(rvec).reshape(3, 1)   # <— garante (3,1)
-    tvec = np.asarray(tvec).reshape(3, 1)   # <— garante (3,1)
+    rvec = np.asarray(rvec).reshape(3, 1)
+    tvec = np.asarray(tvec).reshape(3, 1)
     R, _ = cv2.Rodrigues(rvec)
-    RX = np.array([[1,0,0],[0,-1,0],[0,0,-1]])  # ajuste de convenção
+    RX = np.array([[1,0,0],[0,-1,0],[0,0,-1]])  # ajuste de convenção de coordenadas
     R = RX @ R
     tvec = RX @ tvec
     modelview = np.eye(4)
@@ -84,31 +84,11 @@ def build_modelview_matrix(rvec, tvec):
     modelview[:3,3] = tvec.flatten()
     return modelview.T
 
-# ======= FUNÇÕES DE DESENHO OPENGL =======
-"""
-def draw_background(img):
-    h, w, _ = img.shape
-    glMatrixMode(GL_PROJECTION)
-    glPushMatrix()
-    glLoadIdentity()
-    glOrtho(0, w, 0, h, -1, 1)
-    glMatrixMode(GL_MODELVIEW)
-    glPushMatrix()
-    glLoadIdentity()
-    glRasterPos2i(0, 0)
-    img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-    glDrawPixels(w, h, GL_RGB, GL_UNSIGNED_BYTE, img_rgb)
-    glPopMatrix()
-    glMatrixMode(GL_PROJECTION)
-    glPopMatrix()
-    glMatrixMode(GL_MODELVIEW)
-"""
+# funções de desenho OpenGL
 def draw_background(img_bgr, win_w, win_h):
-    # Redimensiona ao tamanho da janela
     img = cv2.resize(img_bgr, (win_w, win_h), interpolation=cv2.INTER_LINEAR)
-    # BGR -> RGB
     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-    # OpenGL tem origem no canto inferior; fazemos flip vertical para ficar "em pé"
+    # OpenGL tem origem no canto inferior; flip vertical necessário
     img = np.flipud(img)
 
     glMatrixMode(GL_PROJECTION)
@@ -131,11 +111,9 @@ def draw_background(img_bgr, win_w, win_h):
 def draw_cube(size):
     glBegin(GL_QUADS)
     for sgn in [-1,1]:
-        # frente/trás
         glNormal3f(0,0,sgn)
         for x,y in [(-1,-1),(1,-1),(1,1),(-1,1)]:
             glVertex3f(x*size, y*size, sgn*size)
-        # laterais
         glNormal3f(sgn,0,0)
         for z,y in [(-1,-1),(1,-1),(1,1),(-1,1)]:
             glVertex3f(sgn*size, y*size, z*size)
@@ -155,62 +133,33 @@ def draw_axes(L=0.06):
     glEnd()
 
 
-# ======= CALLBACK OPENGL =======
+# callback OpenGL
 current_frame = frame0.copy()
 current_rvec, current_tvec = None, None
 
-"""
-def show_screen():
-    global current_frame, current_rvec, current_tvec
-
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-    glDisable(GL_LIGHTING)
-    draw_background(current_frame, win_w, win_h)
-    glEnable(GL_LIGHTING)
-
-    if current_rvec is not None:
-        glMatrixMode(GL_PROJECTION)
-        glLoadMatrixd(build_projection_matrix(K_disp, win_w, win_h))
-        glMatrixMode(GL_MODELVIEW)
-        glLoadMatrixd(build_modelview_matrix(current_rvec, current_tvec))
-        # pequeno “lift” para não colar no plano
-        glTranslatef(0.0, 0.0, -MARKER_SIZE/2)
-
-        # desenha colorido e sem iluminação (evita material preto)
-        glDisable(GL_LIGHTING)
-        glColor3f(1.0, 0.2, 0.2)  # vermelho clarinho
-        draw_cube(MARKER_SIZE/2)
-        glEnable(GL_LIGHTING)
-
-    glutSwapBuffers()
-"""
-
 def show_screen():
     global current_frame, current_rvec, current_tvec
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
 
-    # Draw background first (2D, no depth testing)
+    # desenha background primeiro (2D, sem depth test)
     glDisable(GL_DEPTH_TEST)
     glDisable(GL_LIGHTING)
     draw_background(current_frame, win_w, win_h)
     glEnable(GL_DEPTH_TEST)
 
     if current_rvec is not None:
-        # PROJEÇÃO (reset + carrega sua K escalada)
+        # configura projeção com K escalada
         glMatrixMode(GL_PROJECTION)
         glLoadIdentity()
         glLoadMatrixd(build_projection_matrix(K_disp, win_w, win_h))
 
-        # MODELVIEW (reset + carrega a pose do marcador)
+        # configura modelview com pose do marcador
         glMatrixMode(GL_MODELVIEW)
         glLoadIdentity()
         glTranslatef(0.0, 0.0, -MARKER_SIZE/2)
         glLoadMatrixd(build_modelview_matrix(current_rvec, current_tvec))
 
-        # Leve afastamento do plano do marcador — tente + (para "cima")
-
-        # Preenchido (sem iluminação) para garantir cor visível
         glDisable(GL_LIGHTING)
         glEnable(GL_POLYGON_OFFSET_FILL)
         glPolygonOffset(1.0, 1.0)
@@ -219,7 +168,7 @@ def show_screen():
         draw_cube(MARKER_SIZE/4)
         glDisable(GL_POLYGON_OFFSET_FILL)
 
-        # Wireframe preto por cima (ajuda a depurar)
+        # wireframe preto por cima
         glPolygonMode(GL_FRONT_AND_BACK, GL_LINE)
         glLineWidth(2.0)
         glColor3f(0.0, 0.0, 0.0)
@@ -229,7 +178,7 @@ def show_screen():
     glutSwapBuffers()
 
 
-# ======= LOOP DE VÍDEO =======
+# loop de vídeo
 def idle_noop():
     pass
 
@@ -240,10 +189,8 @@ def idle():
         return
 
     if not cap.isOpened():
-        
         VIDEO_ENDED = True
-        glutIdleFunc(idle_noop)  # desliga o idle
-
+        glutIdleFunc(idle_noop)
         return
 
     ret, frame = cap.read()
@@ -254,7 +201,7 @@ def idle():
             cap.release()
         except Exception:
             pass
-        glutIdleFunc(idle_noop)  # <- chave pra parar o loop
+        glutIdleFunc(idle_noop)
         return
 
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -265,8 +212,8 @@ def idle():
         rvecs, tvecs, _ = cv2.aruco.estimatePoseSingleMarkers(corners, MARKER_SIZE, mtx, dist)
         cv2.aruco.drawDetectedMarkers(frame, corners, ids)
         for rvec, tvec in zip(rvecs, tvecs):
-            rvec = rvec.reshape(3, 1)   
-            tvec = tvec.reshape(3, 1)  
+            rvec = rvec.reshape(3, 1)
+            tvec = tvec.reshape(3, 1)
             cv2.drawFrameAxes(frame, mtx, dist, rvec, tvec, MARKER_SIZE*0.5)
             current_rvec, current_tvec = rvec, tvec
             break
@@ -293,7 +240,7 @@ def keyboard(key, x, y):
 
 
 
-# ======= CONFIGURAÇÃO OPENGL =======
+# configuração OpenGL
 glutInit()
 glutInitDisplayMode(GLUT_RGBA | GLUT_DOUBLE | GLUT_DEPTH)
 glutInitWindowSize(win_w, win_h)

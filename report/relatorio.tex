@@ -1,0 +1,57 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[portuguese]{babel}
+\usepackage{graphicx}
+\usepackage{listings}
+\usepackage{hyperref}
+\usepackage{amsmath}
+\usepackage{booktabs}
+\usepackage{geometry}
+\usepackage{float}
+\usepackage{caption}
+\usepackage{subcaption}
+
+\geometry{margin=2.5cm}
+
+% Configuração para código Python
+\lstset{
+    language=Python,
+    basicstyle=\ttfamily\small,
+    keywordstyle=\color{blue}\bfseries,
+    commentstyle=\color{green!60!black},
+    stringstyle=\color{red},
+    numbers=left,
+    numberstyle=\tiny\color{gray},
+    stepnumber=1,
+    numbersep=5pt,
+    frame=single,
+    breaklines=true,
+    showstringspaces=false,
+    tabsize=2
+}
+
+\title{Relatório Técnico: Calibração de Câmera e Realidade Aumentada\\MAC5915 - EP1}
+\author{}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+Este relatório apresenta a implementação de um sistema de realidade aumentada baseado em marcadores ArUco, utilizando calibração de câmera e renderização 3D com OpenGL. O projeto foi desenvolvido em Python utilizando OpenCV para processamento de vídeo e detecção de marcadores, e PyOpenGL para renderização de objetos 3D. Foram implementadas duas versões: uma com renderização de um cubo simples e outra com uma bola de tênis texturizada. Os resultados demonstram tracking preciso dos marcadores e integração adequada entre o mundo real capturado pela câmera e objetos virtuais renderizados.
+\end{abstract}
+
+\tableofcontents
+\newpage
+
+\input{sections/introducao}
+\input{sections/metodologia}
+\input{sections/resultados}
+\input{sections/discussao}
+\input{sections/conclusao}
+
+\newpage
+\input{sections/bibliografia}
+
+\end{document}

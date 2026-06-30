@@ -1,0 +1,90 @@
+\section{Conclusão}
+\label{sec:conclusao}
+
+Este trabalho apresentou a implementação completa de um sistema de realidade aumentada baseado em marcadores ArUco, desde a calibração da câmera até a renderização de objetos 3D texturizados.
+
+\subsection{Objetivos Alcançados}
+
+Todos os objetivos principais foram alcançados com sucesso:
+
+\begin{enumerate}
+    \item \textbf{Calibração de câmera}: Sistema de calibração funcional utilizando padrão de xadrez, produzindo parâmetros intrínsecos e de distorção com qualidade adequada.
+    
+    \item \textbf{Tracking de marcadores}: Detecção e estimativa de pose de marcadores ArUco implementada com robustez satisfatória.
+    
+    \item \textbf{Integração OpenCV-OpenGL}: Conversão correta entre sistemas de coordenadas, permitindo renderização precisa de objetos 3D.
+    
+    \item \textbf{Renderização básica}: Cubo 3D renderizado corretamente sobre marcadores, validando a pipeline completa.
+    
+    \item \textbf{Renderização avançada}: Bola de tênis texturizada com características realistas, demonstrando capacidade de renderização de objetos complexos.
+\end{enumerate}
+
+\subsection{Principais Aprendizados}
+
+O desenvolvimento deste projeto proporcionou aprendizados importantes:
+
+\begin{itemize}
+    \item \textbf{Importância da calibração}: A qualidade da calibração é fundamental para o sucesso de aplicações de visão computacional. Pequenos erros na calibração resultam em erros significativos na projeção 3D.
+    
+    \item \textbf{Complexidade de sistemas de coordenadas}: A conversão entre diferentes sistemas de coordenadas (OpenCV, OpenGL, mundo) requer atenção cuidadosa aos detalhes. A matriz de transformação $R_X$ é essencial para o alinhamento correto.
+    
+    \item \textbf{Integração de bibliotecas}: A combinação de OpenCV (processamento de imagem) com OpenGL (renderização) requer compreensão profunda de ambas as bibliotecas e suas convenções.
+    
+    \item \textbf{Texturização e iluminação}: A renderização realista de objetos 3D requer não apenas geometria correta, mas também texturização adequada e iluminação apropriada.
+\end{itemize}
+
+\subsection{Contribuições do Trabalho}
+
+Este projeto contribui com:
+
+\begin{enumerate}
+    \item \textbf{Implementação completa}: Sistema funcional end-to-end desde calibração até renderização AR.
+    
+    \item \textbf{Código documentado}: Scripts Python bem estruturados que podem servir como base para trabalhos futuros.
+    
+    \item \textbf{Análise técnica}: Documentação detalhada dos processos e decisões de implementação.
+    
+    \item \textbf{Resultados validados}: Vídeos de saída demonstrando o funcionamento do sistema em condições reais.
+\end{enumerate}
+
+\subsection{Trabalhos Futuros}
+
+Várias direções interessantes podem ser exploradas em trabalhos futuros:
+
+\subsubsection{Melhorias Técnicas}
+
+\begin{itemize}
+    \item Implementação de filtros de Kalman para suavização temporal da pose
+    \item Suporte a múltiplos marcadores simultâneos
+    \item Tracking híbrido combinando marcadores com características visuais
+    \item Detecção e renderização de oclusão mútua entre objetos reais e virtuais
+\end{itemize}
+
+\subsubsection{Novas Funcionalidades}
+
+\begin{itemize}
+    \item Sistema de realidade aumentada sem marcadores utilizando SLAM
+    \item Renderização de sombras projetadas
+    \item Iluminação adaptativa baseada no ambiente
+    \item Interface gráfica para configuração e visualização
+    \item Suporte a processamento em tempo real de câmera
+\end{itemize}
+
+\subsubsection{Aplicações Práticas}
+
+\begin{itemize}
+    \item Aplicações educacionais: Visualização de modelos 3D em livros didáticos
+    \item Manutenção industrial: Instruções sobrepostas em equipamentos
+    \item Entretenimento: Jogos e experiências interativas
+    \item Arquitetura: Visualização de projetos em escala real
+\end{itemize}
+
+\subsection{Considerações Finais}
+
+O projeto demonstrou a viabilidade de implementar sistemas de realidade aumentada utilizando ferramentas open-source (OpenCV e OpenGL) e linguagens de alto nível (Python). Embora existam limitações em relação a sistemas comerciais mais avançados, a implementação serve como base sólida para desenvolvimento futuro e demonstra os conceitos fundamentais de AR baseada em marcadores.
+
+A integração bem-sucedida entre processamento de imagem e renderização 3D abre possibilidades para diversas aplicações práticas, e o código desenvolvido pode ser estendido e adaptado para necessidades específicas.
+
+\vspace{1cm}
+
+\textit{Os códigos-fonte, vídeos de saída e este relatório estão disponíveis no repositório do projeto.}

@@ -1,0 +1,201 @@
+\section{Metodologia}
+\label{sec:metodologia}
+
+Esta seção descreve em detalhes a metodologia utilizada em cada componente do projeto, incluindo os algoritmos, bibliotecas e técnicas empregadas.
+
+\subsection{Calibração de Câmera}
+
+A calibração de câmera é o primeiro passo fundamental para qualquer aplicação de visão computacional que requer medidas precisas ou projeção de objetos 3D. O script \texttt{camcal.py} implementa o processo de calibração utilizando o método de Zhang~\cite{zhang2000}.
+
+\subsubsection{Padrão de Calibração}
+
+Foi utilizado um padrão de xadrez com grade de $9 \times 6$ pontos internos. As coordenadas 3D dos pontos do padrão são definidas no plano $z=0$, com espaçamento unitário entre os pontos:
+
+\begin{lstlisting}[caption=Definição das coordenadas do padrão de xadrez]
+objp = np.zeros((9*6, 3), np.float32)
+k = 0
+for i in range(6):
+    for j in range(9):
+        objp[k,0] = j  # x
+        objp[k,1] = i  # y
+        k += 1
+\end{lstlisting}
+
+\subsubsection{Processo de Captura}
+
+O processo de calibração segue os seguintes passos:
+
+\begin{enumerate}
+    \item \textbf{Carregamento do vídeo}: O vídeo \texttt{data/pattern.MOV} contém múltiplas poses do padrão de xadrez
+    \item \textbf{Detecção de cantos}: Para cada frame, o algoritmo \texttt{findChessboardCorners} detecta os cantos do padrão
+    \item \textbf{Refinamento sub-pixel}: Os cantos detectados são refinados usando \texttt{cornerSubPix} com critérios de convergência (30 iterações, tolerância 0.001)
+    \item \textbf{Amostragem}: Até 25 capturas válidas são coletadas, distribuídas uniformemente ao longo do vídeo
+    \item \textbf{Calibração}: A função \texttt{calibrateCamera} do OpenCV calcula os parâmetros da câmera
+\end{enumerate}
+
+\subsubsection{Parâmetros Calculados}
+
+O processo de calibração produz dois arquivos principais:
+
+\begin{itemize}
+    \item \texttt{mtx.txt}: Matriz de calibração intrínseca $K$ (3×3), contendo:
+    \begin{itemize}
+        \item $f_x, f_y$: distâncias focais em pixels
+        \item $c_x, c_y$: coordenadas do ponto principal (centro óptico)
+    \end{itemize}
+    \item \texttt{dist.txt}: Coeficientes de distorção (5 valores do modelo de distorção de Brown-Conrady)
+\end{itemize}
+
+\subsubsection{Métricas de Qualidade}
+
+A qualidade da calibração é avaliada através de:
+
+\begin{itemize}
+    \item \textbf{Erro RMS}: Retornado diretamente por \texttt{calibrateCamera}, representa o erro de reprojeção médio
+    \item \textbf{Erro médio de reprojeção}: Calculado manualmente projetando os pontos 3D de volta na imagem e comparando com os pontos detectados
+\end{itemize}
+
+\subsection{Realidade Aumentada com Cubo}
+
+O script \texttt{realidade\_aumentada.py} implementa a versão básica do sistema AR, renderizando um cubo 3D sobre marcadores ArUco detectados.
+
+\subsubsection{Detecção de Marcadores ArUco}
+
+Os marcadores ArUco são detectados utilizando o dicionário \texttt{DICT\_4X4\_50} do OpenCV:
+
+\begin{lstlisting}[caption=Configuração da detecção ArUco]
+aruco_dict = cv2.aruco.getPredefinedDictionary(
+    cv2.aruco.DICT_4X4_50
+)
+parameters = cv2.aruco.DetectorParameters()
+\end{lstlisting}
+
+Para cada frame do vídeo:
+\begin{enumerate}
+    \item A imagem é convertida para escala de cinza
+    \item \texttt{detectMarkers} identifica os marcadores e seus cantos
+    \item \texttt{estimatePoseSingleMarkers} calcula a pose (rotação e translação) de cada marcador, utilizando os parâmetros de calibração
+\end{enumerate}
+
+\subsubsection{Conversão de Coordenadas OpenCV para OpenGL}
+
+Uma das partes mais críticas da implementação é a conversão correta entre os sistemas de coordenadas do OpenCV e OpenGL, que possuem convenções diferentes:
+
+\begin{itemize}
+    \item \textbf{OpenCV}: Sistema de coordenadas com origem no canto superior esquerdo, eixo Y para baixo, eixo Z para frente
+    \item \textbf{OpenGL}: Sistema de coordenadas com origem no canto inferior esquerdo, eixo Y para cima, eixo Z para trás
+\end{itemize}
+
+\paragraph{Matriz de Projeção}
+
+A matriz de calibração $K$ é convertida para uma matriz de projeção OpenGL:
+
+\begin{lstlisting}[caption=Conversão da matriz de projeção]
+def build_projection_matrix(K, w, h, near=0.001, far=10.0):
+    fx, fy = K[0,0], K[1,1]
+    cx, cy = K[0,2], K[1,2]
+    proj = np.zeros((4,4))
+    proj[0,0] =  2.0 * fx / w
+    proj[1,1] =  2.0 * fy / h
+    proj[0,2] =  2.0 * (cx / w) - 1.0
+    proj[1,2] =  2.0 * (cy / h) - 1.0
+    proj[2,2] = -(far+near)/(far-near)
+    proj[3,2] = -1.0
+    proj[2,3] = -2.0*far*near/(far-near)
+    return proj.T
+\end{lstlisting}
+
+\paragraph{Matriz ModelView}
+
+A pose do marcador (vetor de rotação de Rodrigues e vetor de translação) é convertida para a matriz ModelView do OpenGL:
+
+\begin{lstlisting}[caption=Conversão da matriz ModelView]
+def build_modelview_matrix(rvec, tvec):
+    rvec = np.asarray(rvec).reshape(3, 1)
+    tvec = np.asarray(tvec).reshape(3, 1)
+    R, _ = cv2.Rodrigues(rvec)
+    RX = np.array([[1,0,0],[0,-1,0],[0,0,-1]])
+    R = RX @ R
+    tvec = RX @ tvec
+    modelview = np.eye(4)
+    modelview[:3,:3] = R
+    modelview[:3,3] = tvec.flatten()
+    return modelview.T
+\end{lstlisting}
+
+A matriz $R_X$ realiza o ajuste de convenção entre os sistemas de coordenadas, invertendo os eixos Y e Z.
+
+\subsubsection{Renderização OpenGL}
+
+O processo de renderização segue o seguinte fluxo:
+
+\begin{enumerate}
+    \item \textbf{Background}: O frame atual do vídeo é renderizado como textura de fundo usando \texttt{glDrawPixels}
+    \item \textbf{Configuração de projeção}: A matriz de projeção calculada é carregada
+    \item \textbf{Configuração de ModelView}: A pose do marcador é aplicada
+    \item \textbf{Renderização do cubo}: Um cubo colorido com wireframe é desenhado sobre o marcador
+    \item \textbf{Eixos de referência}: Eixos coloridos (X=vermelho, Y=verde, Z=azul) são desenhados para debug
+\end{enumerate}
+
+\subsection{Realidade Aumentada com Bola de Tênis}
+
+O script \texttt{tennis\_ball.py} estende a implementação anterior com renderização de uma esfera texturizada representando uma bola de tênis.
+
+\subsubsection{Carregamento de Textura}
+
+A textura da bola de tênis é carregada de um arquivo de imagem:
+
+\begin{lstlisting}[caption=Carregamento de textura]
+def load_texture(texture_path):
+    img = cv2.imread(str(texture_path))
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    texture_id = glGenTextures(1)
+    glBindTexture(GL_TEXTURE_2D, texture_id)
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 
+                 width, height, 0, GL_RGB, 
+                 GL_UNSIGNED_BYTE, img)
+    return texture_id
+\end{lstlisting}
+
+\subsubsection{Renderização da Esfera}
+
+A esfera é renderizada usando coordenadas esféricas, dividida em \textit{slices} (longitude) e \textit{stacks} (latitude):
+
+\begin{lstlisting}[caption=Renderização da esfera texturizada]
+for i in range(stacks):
+    lat0 = math.pi * (-0.5 + float(i) / stacks)
+    z0 = math.sin(lat0)
+    zr0 = math.cos(lat0)
+    # ... cálculo de vértices e coordenadas de textura
+\end{lstlisting}
+
+\subsubsection{Costura Característica}
+
+Uma costura característica de bola de tênis é desenhada sobre a esfera usando uma curva paramétrica que cria um padrão em forma de "8":
+
+\begin{lstlisting}[caption=Fórmula da costura]
+x = (3 * sin(t) + sin(3*t)) / 4
+y = (3 * cos(t) - cos(3*t)) / 4
+z = (sqrt(3) * cos(2*t)) / 2
+\end{lstlisting}
+
+\subsubsection{Sistema de Gravação}
+
+Foi implementado um sistema de gravação de vídeo que captura os frames renderizados pelo OpenGL:
+
+\begin{itemize}
+    \item Pressionar 'r' inicia/para a gravação
+    \item Os frames são lidos do framebuffer OpenGL usando \texttt{glReadPixels}
+    \item A imagem é convertida de RGB para BGR e salva usando \texttt{cv2.VideoWriter}
+    \item O vídeo é salvo com codec MP4V a 60 FPS
+\end{itemize}
+
+\subsubsection{Ajustes de Posicionamento}
+
+A bola de tênis é posicionada flutuando acima do marcador através de uma translação adicional no eixo Z:
+
+\begin{lstlisting}[caption=Posicionamento da bola]
+glTranslatef(0.0, 0.0, -MARKER_SIZE/4)
+glLoadMatrixd(build_modelview_matrix(rvec, tvec))
+glTranslatef(0.0, 0.0, MARKER_SIZE * 1)  # Elevação
+\end{lstlisting}

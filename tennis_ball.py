@@ -9,7 +9,7 @@ from pathlib import Path
 
 # ==== parâmetros gerais do código ====
 BASE_DIR = Path(__file__).resolve().parent
-VIDEO_PATH = BASE_DIR / "data" / "aruco-marker-3.MOV"
+VIDEO_PATH = BASE_DIR / "data" / "aruco-marker-2.MOV"
 MARKER_SIZE = 0.04
 TEXTURE_PATH = BASE_DIR / "data" / "tennis-ball-texture.jpg"
 VIDEO_ENDED = False
@@ -28,32 +28,28 @@ dist = dist.reshape(1,5)
 
 # ==== carregamento da textura ====
 def load_texture(texture_path):
-    """Load texture from image file"""
+    """Carrega textura a partir de arquivo de imagem"""
     img = cv2.imread(str(texture_path))
     if img is None:
         print(f"Erro ao carregar textura: {texture_path}")
         return None
     
-    # Convert BGR to RGB
     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
     height, width = img.shape[:2]
     
-    # Generate texture ID
     texture_id = glGenTextures(1)
     glBindTexture(GL_TEXTURE_2D, texture_id)
     
-    # Set texture parameters
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT)
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT)
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR)
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR)
     
-    # Upload texture data
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, img)
     
     return texture_id
 
-# Don't load texture here - will load after OpenGL context is created
+# Textura será carregada após criar o contexto OpenGL
 tennis_texture = None
 
 # ==== dicionário aruco ====
@@ -74,7 +70,7 @@ SizeY, SizeX, _ = frame0.shape
 # Tamanho original dos frames
 orig_h, orig_w = frame0.shape[:2]
 
-# ==== ajustar janela para caber na tela ====
+# ajustar janela para caber na tela
 screen_w = glutGet(GLUT_SCREEN_WIDTH) if glutGet(GLUT_SCREEN_WIDTH) else 1440
 screen_h = glutGet(GLUT_SCREEN_HEIGHT) if glutGet(GLUT_SCREEN_HEIGHT) else 900
 
@@ -85,14 +81,14 @@ display_scale = float(min(scale_w, scale_h, 1.0))  # nunca amplia além do origi
 win_w = int(orig_w * display_scale)
 win_h = int(orig_h * display_scale)
 
-# K (intrínseca) precisa ser escalonada pela MESMA razão de escala do display
+# matriz K precisa ser escalonada pela mesma razão do display
 K_disp = mtx.copy()
 K_disp[0, 0] *= display_scale  # fx
 K_disp[1, 1] *= display_scale  # fy
 K_disp[0, 2] *= display_scale  # cx
 K_disp[1, 2] *= display_scale  # cy
 
-# ======= CONVERSÃO PARA MATRIZ DE PROJEÇÃO OPENGL =======
+# conversão para matriz de projeção OpenGL
 def build_projection_matrix(K, w, h, near=0.001, far=10.0):
     fx, fy = K[0,0], K[1,1]
     cx, cy = K[0,2], K[1,2]
@@ -106,12 +102,12 @@ def build_projection_matrix(K, w, h, near=0.001, far=10.0):
     proj[2,3] = -2.0*far*near/(far-near)
     return proj.T
 
-# ======= CONVERSÃO POSE -> MATRIZ MODELVIEW =======
+# conversão pose -> matriz modelview
 def build_modelview_matrix(rvec, tvec):
-    rvec = np.asarray(rvec).reshape(3, 1)   # <— garante (3,1)
-    tvec = np.asarray(tvec).reshape(3, 1)   # <— garante (3,1)
+    rvec = np.asarray(rvec).reshape(3, 1)
+    tvec = np.asarray(tvec).reshape(3, 1)
     R, _ = cv2.Rodrigues(rvec)
-    RX = np.array([[1,0,0],[0,-1,0],[0,0,-1]])  # ajuste de convenção
+    RX = np.array([[1,0,0],[0,-1,0],[0,0,-1]])  # ajuste de convenção de coordenadas
     R = RX @ R
     tvec = RX @ tvec
     modelview = np.eye(4)
@@ -119,13 +115,11 @@ def build_modelview_matrix(rvec, tvec):
     modelview[:3,3] = tvec.flatten()
     return modelview.T
 
-# ======= FUNÇÕES DE DESENHO OPENGL =======
+# funções de desenho OpenGL
 def draw_background(img_bgr, win_w, win_h):
-    # Redimensiona ao tamanho da janela
     img = cv2.resize(img_bgr, (win_w, win_h), interpolation=cv2.INTER_LINEAR)
-    # BGR -> RGB
     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-    # OpenGL tem origem no canto inferior; fazemos flip vertical para ficar "em pé"
+    # OpenGL tem origem no canto inferior; flip vertical necessário
     img = np.flipud(img)
 
     glMatrixMode(GL_PROJECTION)
@@ -146,7 +140,7 @@ def draw_background(img_bgr, win_w, win_h):
     glMatrixMode(GL_MODELVIEW)
 
 def draw_sphere(radius, slices=20, stacks=20):
-    """Draw a sphere with given radius, slices (longitude), and stacks (latitude)"""
+    """Desenha uma esfera com raio, slices (longitude) e stacks (latitude) dados"""
     for i in range(stacks):
         lat0 = math.pi * (-0.5 + float(i) / stacks)
         z0 = math.sin(lat0)
@@ -162,7 +156,6 @@ def draw_sphere(radius, slices=20, stacks=20):
             x = math.cos(lng)
             y = math.sin(lng)
             
-            # Normal for lighting
             glNormal3f(x * zr0, y * zr0, z0)
             glVertex3f(x * zr0 * radius, y * zr0 * radius, z0 * radius)
             
@@ -171,21 +164,20 @@ def draw_sphere(radius, slices=20, stacks=20):
         glEnd()
 
 def draw_tennis_ball_seam(radius, num_points=200):
-    """Draw a single continuous tennis ball seam that wraps around the sphere"""
-    glColor3f(1.0, 1.0, 1.0)  # White lines
+    """Desenha a costura característica da bola de tênis"""
+    glColor3f(1.0, 1.0, 1.0)  # linhas brancas
     glLineWidth(4.0)
     
     glBegin(GL_LINE_STRIP)
     for i in range(num_points + 1):
         t = 2 * math.pi * float(i) / num_points
         
-        # Tennis ball seam formula - creates a single continuous curve
-        # This creates a figure-8 pattern that wraps around the sphere
+        # fórmula da costura da bola de tênis (padrão figura-8)
         x = (3 * math.sin(t) + math.sin(3 * t)) / 4
         y = (3 * math.cos(t) - math.cos(3 * t)) / 4
         z = (math.sqrt(3) * math.cos(2 * t)) / 2
         
-        # Normalize to unit sphere, then scale by radius
+        # normaliza para esfera unitária e escala pelo raio
         length = math.sqrt(x*x + y*y + z*z)
         if length > 0:
             x = (x / length) * radius
@@ -196,17 +188,16 @@ def draw_tennis_ball_seam(radius, num_points=200):
     glEnd()
 
 def draw_tennis_ball(radius, slices=20, stacks=20):
-    """Draw a tennis ball with texture mapping and characteristic curved lines"""
-    # Enable texturing
+    """Desenha bola de tênis com textura e costura característica"""
     if tennis_texture is not None:
         glEnable(GL_TEXTURE_2D)
         glBindTexture(GL_TEXTURE_2D, tennis_texture)
-        glColor3f(1.0, 1.0, 1.0)  # White to show texture colors
+        glColor3f(1.0, 1.0, 1.0)  # branco para mostrar cores da textura
     else:
         glDisable(GL_TEXTURE_2D)
-        glColor3f(0.0, 0.6, 0.0)  # Fallback green color
+        glColor3f(0.0, 0.6, 0.0)  # verde como fallback
     
-    # Draw textured sphere
+    # desenha esfera texturizada
     for i in range(stacks):
         lat0 = math.pi * (-0.5 + float(i) / stacks)
         z0 = math.sin(lat0)
@@ -222,13 +213,11 @@ def draw_tennis_ball(radius, slices=20, stacks=20):
             x = math.cos(lng)
             y = math.sin(lng)
             
-            # Calculate texture coordinates
             u0 = float(j) / slices
             v0 = float(i) / stacks
             u1 = float(j) / slices
             v1 = float(i + 1) / stacks
             
-            # Normal for lighting
             glNormal3f(x * zr0, y * zr0, z0)
             glTexCoord2f(u0, v0)
             glVertex3f(x * zr0 * radius, y * zr0 * radius, z0 * radius)
@@ -238,17 +227,12 @@ def draw_tennis_ball(radius, slices=20, stacks=20):
             glVertex3f(x * zr1 * radius, y * zr1 * radius, z1 * radius)
         glEnd()
     
-    # Disable texturing for the lines
     glDisable(GL_TEXTURE_2D)
     
-    # Enable polygon offset to draw lines slightly in front of the sphere
+    # desenha costura ligeiramente à frente da esfera
     glEnable(GL_POLYGON_OFFSET_LINE)
     glPolygonOffset(-1.0, -1.0)
-    
-    # Draw the single continuous tennis ball seam
     draw_tennis_ball_seam(radius)
-    
-    # Disable polygon offset
     glDisable(GL_POLYGON_OFFSET_LINE)
 
 def draw_axes(L=0.06):
@@ -261,7 +245,7 @@ def draw_axes(L=0.06):
     glColor3f(0,0,1); glVertex3f(0,0,0); glVertex3f(0,0,L)
     glEnd()
 
-# ======= CALLBACK OPENGL =======
+# callback OpenGL
 current_frame = frame0.copy()
 current_rvec, current_tvec = None, None
 
@@ -270,42 +254,39 @@ def show_screen():
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
 
-    # Draw background first (2D, no depth testing)
+    # desenha background primeiro (2D, sem depth test)
     glDisable(GL_DEPTH_TEST)
     glDisable(GL_LIGHTING)
     draw_background(current_frame, win_w, win_h)
     glEnable(GL_DEPTH_TEST)
 
     if current_rvec is not None:
-        # PROJEÇÃO (reset + carrega sua K escalada)
+        # configura projeção com K escalada
         glMatrixMode(GL_PROJECTION)
         glLoadIdentity()
         glLoadMatrixd(build_projection_matrix(K_disp, win_w, win_h))
 
-        # MODELVIEW (reset + carrega a pose do marcador)
+        # configura modelview com pose do marcador
         glMatrixMode(GL_MODELVIEW)
         glLoadIdentity()
         glTranslatef(0.0, 0.0, -MARKER_SIZE/4)
         glLoadMatrixd(build_modelview_matrix(current_rvec, current_tvec))
 
-        # Leve afastamento do plano do marcador — tente + (para "cima")
-        # Position the ball floating above the marker
-        glTranslatef(0.0, 0.0, MARKER_SIZE * 1)  # Move up by MARKER_SIZE units
+        # posiciona bola acima do marcador
+        glTranslatef(0.0, 0.0, MARKER_SIZE * 1)
 
-        # Preenchido (sem iluminação) para garantir cor visível
         glDisable(GL_LIGHTING)
         glEnable(GL_POLYGON_OFFSET_FILL)
         glPolygonOffset(1.0, 1.0)
         glColor3f(1.0, 0.2, 0.2)
-        #draw_axes(MARKER_SIZE*1.2)
-        draw_tennis_ball(MARKER_SIZE/3)  # Tennis ball instead of cube
+        draw_tennis_ball(MARKER_SIZE/3)
         glDisable(GL_POLYGON_OFFSET_FILL)
 
     glutSwapBuffers()
     save_frame_to_video()
 
 
-# ======= LOOP DE VÍDEO =======
+# loop de vídeo
 def idle_noop():
     pass
 
@@ -316,10 +297,8 @@ def idle():
         return
 
     if not cap.isOpened():
-        
         VIDEO_ENDED = True
-        glutIdleFunc(idle_noop)  # desliga o idle
-
+        glutIdleFunc(idle_noop)
         return
 
     ret, frame = cap.read()
@@ -330,7 +309,7 @@ def idle():
             cap.release()
         except Exception:
             pass
-        glutIdleFunc(idle_noop)  # <- chave pra parar o loop
+        glutIdleFunc(idle_noop)
         return
 
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -339,11 +318,9 @@ def idle():
     current_rvec, current_tvec = None, None
     if ids is not None:
         rvecs, tvecs, _ = cv2.aruco.estimatePoseSingleMarkers(corners, MARKER_SIZE, mtx, dist)
-        #cv2.aruco.drawDetectedMarkers(frame, corners, ids)
         for rvec, tvec in zip(rvecs, tvecs):
-            rvec = rvec.reshape(3, 1)   
-            tvec = tvec.reshape(3, 1)  
-            #cv2.drawFrameAxes(frame, mtx, dist, rvec, tvec, MARKER_SIZE*0.5)
+            rvec = rvec.reshape(3, 1)
+            tvec = tvec.reshape(3, 1)
             current_rvec, current_tvec = rvec, tvec
             break
 
@@ -365,68 +342,57 @@ def keyboard(key, x, y):
             pass
         import sys
         sys.exit(0)
-    elif key == b's':  # Press 's' to save current frame
+    elif key == b's':  # salva frame atual
         save_current_frame()
-    elif key == b'r':  # Press 'r' to start/stop recording
+    elif key == b'r':  # inicia/para gravação
         toggle_recording()
 
 def toggle_recording():
-    """Start or stop video recording"""
+    """Inicia ou para gravação de vídeo"""
     global recording, video_writer
     if not recording:
-        # Start recording
         fourcc = cv2.VideoWriter_fourcc(*'mp4v')
         filename = f"tennis_ball_output_{int(time.time())}.mp4"
         video_writer = cv2.VideoWriter(filename, fourcc, output_fps, (win_w, win_h))
         recording = True
-        print(f"Started recording: {filename}")
+        print(f"Gravação iniciada: {filename}")
     else:
-        # Stop recording
         if video_writer:
             video_writer.release()
             video_writer = None
         recording = False
-        print("Stopped recording")
+        print("Gravação parada")
 
 def save_current_frame():
-    """Save the current OpenGL frame as an image"""
-    # Read pixels from OpenGL framebuffer
+    """Salva o frame atual do OpenGL como imagem"""
     glReadBuffer(GL_FRONT)
     pixels = glReadPixels(0, 0, win_w, win_h, GL_RGB, GL_UNSIGNED_BYTE)
     
-    # Convert to numpy array and flip vertically
     img = np.frombuffer(pixels, dtype=np.uint8)
     img = img.reshape((win_h, win_w, 3))
-    img = np.flipud(img)  # OpenGL has origin at bottom-left
+    img = np.flipud(img)  # OpenGL tem origem no canto inferior
     
-    # Convert RGB to BGR for OpenCV
     img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
     
-    # Save image
     filename = f"tennis_ball_opengl_{int(time.time())}.jpg"
     cv2.imwrite(filename, img)
-    print(f"OpenGL frame saved as {filename}")
+    print(f"Frame salvo: {filename}")
 
 def save_frame_to_video():
-    """Save current OpenGL frame to video if recording"""
+    """Salva frame atual no vídeo se estiver gravando"""
     global video_writer, recording
     if recording and video_writer is not None:
-        # Read pixels from OpenGL framebuffer
         glReadBuffer(GL_FRONT)
         pixels = glReadPixels(0, 0, win_w, win_h, GL_RGB, GL_UNSIGNED_BYTE)
         
-        # Convert to numpy array and flip vertically
         img = np.frombuffer(pixels, dtype=np.uint8)
         img = img.reshape((win_h, win_w, 3))
-        img = np.flipud(img)  # OpenGL has origin at bottom-left
+        img = np.flipud(img)
         
-        # Convert RGB to BGR for OpenCV
         img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
-        
-        # Write to video
         video_writer.write(img)
 
-# ======= CONFIGURAÇÃO OPENGL =======
+# configuração OpenGL
 glutInit()
 glutInitDisplayMode(GLUT_RGBA | GLUT_DOUBLE | GLUT_DEPTH)
 glutInitWindowSize(win_w, win_h)
@@ -438,13 +404,12 @@ glEnable(GL_LIGHTING)
 glEnable(GL_LIGHT0)
 glLightfv(GL_LIGHT0, GL_POSITION, [0,0,1,0])
 
-# Enable texturing
 glEnable(GL_TEXTURE_2D)
 
-# Load texture after OpenGL context is created
+# carrega textura após criar contexto OpenGL
 tennis_texture = load_texture(TEXTURE_PATH)
 if tennis_texture is None:
-    print("Warning: Could not load tennis ball texture, using fallback color")
+    print("Aviso: não foi possível carregar textura, usando cor padrão")
 
 glutDisplayFunc(show_screen)
 glutIdleFunc(idle)

@@ -1,0 +1,109 @@
+\section{Discussão}
+\label{sec:discussao}
+
+Esta seção discute os resultados obtidos, analisa as limitações encontradas e propõe melhorias para o sistema implementado.
+
+\subsection{Análise dos Resultados}
+
+\subsubsection{Calibração}
+
+A calibração da câmera produziu resultados consistentes. Os valores de distância focal ($f_x \approx 1600$ pixels) são razoáveis para uma câmera moderna, e a diferença pequena entre $f_x$ e $f_y$ indica pixels aproximadamente quadrados, como esperado.
+
+O valor elevado do coeficiente de distorção radial $k_2$ ($1.219$) sugere presença significativa de distorção de barril ou almofada, o que é comum em lentes de câmeras de smartphones. A calibração captura adequadamente essa distorção, permitindo correção precisa nas aplicações subsequentes.
+
+A coleta de 25 imagens válidas distribuídas ao longo do vídeo garante boa cobertura do espaço de poses, essencial para uma calibração robusta.
+
+\subsubsection{Tracking de Marcadores ArUco}
+
+O sistema de detecção de marcadores ArUco demonstrou robustez adequada. O dicionário \texttt{DICT\_4X4\_50} oferece um bom equilíbrio entre capacidade de detecção e resistência a falsos positivos.
+
+A estimativa de pose utilizando \texttt{estimatePoseSingleMarkers} produz resultados estáveis quando o marcador está completamente visível. A precisão depende criticamente da qualidade da calibração da câmera, destacando a importância da etapa inicial.
+
+\subsubsection{Integração OpenCV-OpenGL}
+
+A conversão entre sistemas de coordenadas foi implementada corretamente através das funções \texttt{build\_projection\_matrix} e \texttt{build\_modelview\_matrix}. A matriz de transformação $R_X$ que inverte os eixos Y e Z é essencial para alinhar os sistemas de coordenadas.
+
+O escalonamento da matriz de calibração $K$ de acordo com o redimensionamento da janela garante que a projeção permaneça correta mesmo quando o vídeo é redimensionado para caber na tela.
+
+\subsubsection{Renderização 3D}
+
+A renderização do cubo funciona adequadamente como prova de conceito, demonstrando a integração básica entre tracking e renderização.
+
+A implementação da bola de tênis adiciona complexidade significativa:
+\begin{itemize}
+    \item A renderização de esfera com textura requer cálculo de coordenadas de textura para cada vértice
+    \item A costura característica adiciona realismo visual
+    \item O sistema de iluminação OpenGL melhora a percepção de profundidade
+\end{itemize}
+
+\subsection{Limitações Encontradas}
+
+\subsubsection{Limitações Técnicas}
+
+\begin{enumerate}
+    \item \textbf{Oclusão parcial}: Quando o marcador é parcialmente ocluído ou sai do campo de visão, o tracking falha. O sistema não implementa predição ou rastreamento baseado em movimento.
+    
+    \item \textbf{Iluminação}: Variações extremas de iluminação podem afetar a detecção dos marcadores ArUco, especialmente em condições de baixa luz ou reflexos.
+    
+    \item \textbf{Performance}: A renderização OpenGL em tempo real pode ser limitada pela capacidade de processamento, especialmente em vídeos de alta resolução.
+    
+    \item \textbf{Calibração fixa}: Os parâmetros de calibração são assumidos constantes. Em aplicações reais, mudanças de foco ou zoom da câmera requerem recalibração.
+\end{enumerate}
+
+\subsubsection{Limitações da Implementação}
+
+\begin{enumerate}
+    \item \textbf{Um único marcador}: O sistema processa apenas o primeiro marcador detectado em cada frame, ignorando múltiplos marcadores simultâneos.
+    
+    \item \textbf{Sem suavização temporal}: Não há filtragem temporal da pose estimada, resultando em pequenas oscilações visíveis quando o marcador está estático.
+    
+    \item \textbf{Gravação manual}: O sistema de gravação requer intervenção manual (pressionar 'r'), não sendo automático.
+    
+    \item \textbf{Resolução fixa}: A resolução dos vídeos de saída é determinada pelo tamanho da janela OpenGL, não pela resolução original do vídeo de entrada.
+\end{enumerate}
+
+\subsection{Melhorias Propostas}
+
+\subsubsection{Melhorias de Tracking}
+
+\begin{itemize}
+    \item \textbf{Filtro de Kalman}: Implementar um filtro de Kalman para suavizar a estimativa de pose e predizer posições quando o marcador está temporariamente ocluído.
+    
+    \item \textbf{Tracking múltiplo}: Suportar detecção e tracking de múltiplos marcadores simultaneamente, permitindo cenários mais complexos.
+    
+    \item \textbf{Detecção híbrida}: Combinar detecção de marcadores com tracking baseado em características (como ORB ou SIFT) para maior robustez.
+\end{itemize}
+
+\subsubsection{Melhorias de Renderização}
+
+\begin{itemize}
+    \item \textbf{Shadows}: Implementar sombras projetadas dos objetos virtuais sobre o ambiente real.
+    
+    \item \textbf{Oclusão mútua}: Detectar quando objetos reais ocluem objetos virtuais e renderizar adequadamente.
+    
+    \item \textbf{Iluminação adaptativa}: Estimar a iluminação do ambiente e ajustar a renderização dos objetos virtuais para melhor integração visual.
+\end{itemize}
+
+\subsubsection{Melhorias de Sistema}
+
+\begin{itemize}
+    \item \textbf{Processamento em tempo real}: Adaptar o sistema para processamento de câmera em tempo real, não apenas vídeos pré-gravados.
+    
+    \item \textbf{Interface gráfica}: Desenvolver uma interface gráfica para configuração de parâmetros e visualização.
+    
+    \item \textbf{Calibração automática}: Implementar calibração automática ou semi-automática da câmera.
+    
+    \item \textbf{Exportação}: Adicionar opções de exportação em diferentes formatos e resoluções.
+\end{itemize}
+
+\subsection{Comparação com Trabalhos Relacionados}
+
+O sistema implementado segue abordagens padrão da literatura para realidade aumentada baseada em marcadores. A integração OpenCV-OpenGL é uma técnica bem estabelecida, similar à utilizada em frameworks como ARToolKit e AR.js.
+
+A principal diferença em relação a sistemas comerciais (como ARCore ou ARKit) é a dependência de marcadores fiduciais, enquanto sistemas modernos utilizam SLAM (Simultaneous Localization and Mapping) para tracking sem marcadores. No entanto, marcadores oferecem maior precisão e são adequados para aplicações que requerem alinhamento preciso.
+
+\subsection{Aspectos de Implementação}
+
+A escolha de Python com OpenCV e PyOpenGL oferece um bom equilíbrio entre facilidade de desenvolvimento e performance. Para aplicações de produção, uma migração para C++ poderia oferecer melhor performance, mas a implementação atual é adequada para demonstração e prototipagem.
+
+A estrutura modular do código facilita extensões futuras. As funções de conversão de coordenadas são reutilizáveis e podem ser facilmente adaptadas para outros tipos de objetos 3D.
